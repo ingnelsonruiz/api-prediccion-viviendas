@@ -1,4 +1,5 @@
 import json
+import os
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
@@ -6,17 +7,26 @@ from pydantic import BaseModel
 
 app = FastAPI(title="API Predicción de Viviendas")
 
-# Cargar modelo y opciones al iniciar
+# Obtener la ruta absoluta del directorio actual
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "modelo_viviendas.joblib")
+OPCIONES_PATH = os.path.join(BASE_DIR, "opciones.json")
+
+# Cargar modelo y opciones usando rutas absolutas
 try:
-  modelo = joblib.load("modelo_viviendas.joblib")
+  modelo = joblib.load(MODEL_PATH)
+  print("Modelo cargado exitosamente.")
 except Exception as e:
   modelo = None
+  print(f"Error al cargar el modelo: {e}")
 
 try:
-  with open("opciones.json", "r", encoding="utf-8") as f:
+  with open(OPCIONES_PATH, "r", encoding="utf-8") as f:
     opciones_dataset = json.load(f)
 except Exception as e:
   opciones_dataset = {"municipios": [], "inmobiliarias": []}
+  print(f"Error al cargar opciones: {e}")
 
 
 class ViviendaInput(BaseModel):
@@ -42,7 +52,10 @@ def obtener_opciones():
 @app.post("/predict")
 def predecir_precio(datos: ViviendaInput):
   if modelo is None:
-    raise HTTPException(status_code=500, detail="Modelo no cargado.")
+    raise HTTPException(
+        status_code=500,
+        detail="Modelo no cargado. Verifica los logs del servidor.",
+    )
 
   df_entrada = pd.DataFrame([{
       "Habitaciones": datos.habitaciones,
